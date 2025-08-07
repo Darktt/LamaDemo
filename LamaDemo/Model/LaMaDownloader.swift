@@ -6,9 +6,13 @@
 //
 
 import Foundation
+import ZIPFoundation
 
 private
-let modelURL = "https://github.com/Darktt/LamaDemo/blob/model/model/LaMa.zip"
+let kModelURL: String = "https://github.com/Darktt/LamaDemo/raw/refs/heads/model/model/LaMa.zip"
+
+private
+let kModelFileName: String = "LaMa.mlmodelc"
 
 private
 typealias DownloadResult = (location: URL, response: URLResponse)
@@ -34,9 +38,23 @@ class LaMaDownloader
     // MARK: Initial Method
     
     public static
-    func donloadModel() async throws -> LaMa
+    func downloadModel() async throws -> LaMa
     {
         try await LaMaDownloader().downloadModel()
+    }
+    
+    @MainActor
+    public static
+    func deleteModel() throws
+    {
+        let fileController = DTFileController.main
+        let documentURL = fileController.documentUrl(withFileName: kModelFileName)
+        
+        guard fileController.fileExists(atUrl: documentURL) else {
+            return
+        }
+        
+        try fileController.removeFile(at: documentURL)
     }
     
     private
@@ -50,7 +68,12 @@ extension LaMaDownloader
 {
     func downloadModel() async throws -> LaMa
     {
-        let url = URL(string: modelURL)!
+        if let lama = try await self.loadModelIfExists() {
+            
+            return lama
+        }
+        
+        let url = URL(string: kModelURL)!
         let urlRequest = URLRequest(url: url)
         let result: DownloadResult = try await self.session.download(for: urlRequest)
         let response = result.response as! HTTPURLResponse
@@ -63,18 +86,51 @@ extension LaMaDownloader
         }
         
         let temporaryURL = result.location
-        let lama = try await self.setupModel(at: temporaryURL)
+        let unzippedURL = try await self.unzip(at: temporaryURL)
+        let lama = try await self.setupModel(at: unzippedURL)
         
         return lama
+    }
+    
+    @MainActor
+    func loadModelIfExists() throws -> LaMa?
+    {
+        let fileController = DTFileController.main
+        let documentURL = fileController.documentUrl(withFileName: kModelFileName)
+        
+        guard fileController.fileExists(atUrl: documentURL) else {
+            
+            return nil
+        }
+        
+        let lama = try LaMa(contentsOf: documentURL)
+        
+        return lama
+    }
+    
+    @MainActor
+    func unzip(at url: URL) throws -> URL
+    {
+        let destinationFolder = url.deletingLastPathComponent()
+        let destinationURL = destinationFolder.appendingPathComponent(kModelFileName)
+        let fileManager = FileManager.default
+        
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            try fileManager.removeItem(at: destinationURL)
+        }
+        
+        try fileManager.unzipItem(at: url, to: destinationFolder)
+        
+        return destinationURL
     }
     
     @MainActor
     func setupModel(at url: URL) throws -> LaMa
     {
         let fileController = DTFileController.main
-        let documentURL = fileController.documentUrl(withFileName: url.lastPathComponent)
-        try fileController.moveFile(at: url, to: documentURL)
+        let documentURL = fileController.documentUrl(withFileName: kModelFileName)
         
+        try fileController.moveFile(at: url, to: documentURL)
         let lama = try LaMa(contentsOf: documentURL)
         
         return lama
