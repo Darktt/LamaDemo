@@ -28,9 +28,6 @@ class ViewController: UIViewController
     {
         super.viewDidLoad()
         
-        let config = MLModelConfiguration()
-        let lama = try? LaMa(configuration: config)
-        
         self.setupUI()
     }
 }
