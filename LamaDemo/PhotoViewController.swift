@@ -17,7 +17,7 @@ class PhotoViewController: UIViewController
     var imageView: UIImageView!
     
     private
-    var maskDrawingView: MaskDrawingView!
+    var maskDrawingView: DTCanvasView!
     
     private
     var processButton: UIButton!
@@ -89,10 +89,6 @@ class PhotoViewController: UIViewController
             self.maskDrawingView.trailingAnchor.constraint(equalTo: self.imageView.trailingAnchor),
             self.maskDrawingView.bottomAnchor.constraint(equalTo: self.imageView.bottomAnchor)
         ])
-        
-        // Set the selected image
-        self.imageView.image = self.selectedImage
-        self.maskDrawingView.image = self.selectedImage
     }
 }
 
@@ -122,6 +118,7 @@ extension PhotoViewController
         imageView.layer.cornerRadius = 8
         imageView.clipsToBounds = true
         imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.image = self.selectedImage
         
         self.view.addSubview(imageView)
         self.imageView = imageView
@@ -129,14 +126,16 @@ extension PhotoViewController
     
     func setupMaskDrawingView()
     {
-        let maskDrawingView = MaskDrawingView()
-        maskDrawingView.backgroundColor = UIColor.clear
-        maskDrawingView.layer.cornerRadius = 8
-        maskDrawingView.clipsToBounds = true
-        maskDrawingView.translatesAutoresizingMaskIntoConstraints = false
+        let lineColor = UIColor.red.withAlphaComponent(0.5)
         
-        self.view.addSubview(maskDrawingView)
-        self.maskDrawingView = maskDrawingView
+        let canvasView = DTCanvasView()
+        canvasView.lineColor = lineColor
+        canvasView.lineWidth = 15.0
+        canvasView.backgroundColor = UIColor.clear
+        canvasView.translatesAutoresizingMaskIntoConstraints = false
+        
+        self.view.addSubview(canvasView)
+        self.maskDrawingView = canvasView
     }
     
     func setupProcessButton()
@@ -221,21 +220,18 @@ extension PhotoViewController
     
     func clearMaskTapped()
     {
-        self.maskDrawingView.clearMask()
+        self.maskDrawingView.cleanUp()
         self.imageView.image = self.selectedImage
     }
     
     func processImage(_ image: UIImage, with model: LaMa) async throws -> UIImage
     {
-        guard let maskImage = self.maskDrawingView.generateMaskImage() else {
-            
-            let userInfo: [String: Any] = [NSLocalizedDescriptionKey: "請先在圖片上繪製需要修復的區域"]
-            
-            throw NSError(domain: "LaMaProcessing", code: -3, userInfo: userInfo)
-        }
+        let lineColor = UIColor.white
+        let backgroundColor = UIColor.black
+        
+        let maskImage: UIImage = self.maskDrawingView.outputImage(withLineColor: lineColor, backgroundColor: backgroundColor)
         
         let input = try LaMaInput(image: image, mask: maskImage)
-        
         let output = try model.prediction(input: input)
         
         guard let outputPixelBuffer = output.output else {

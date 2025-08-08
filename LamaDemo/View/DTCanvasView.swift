@@ -75,7 +75,8 @@ class DTCanvasView: UIView
         return image
     }
     
-    func outputImage(withLineColor lineColor: UIColor) -> UIImage
+    public
+    func outputImage(withLineColor lineColor: UIColor, backgroundColor: UIColor? = nil) -> UIImage
     {
         let newPath = UIBezierPath()
         
@@ -98,19 +99,22 @@ class DTCanvasView: UIView
             newPath.apply(transform)
         }
         
-        UIGraphicsBeginImageContextWithOptions(bounds.size, false, 0.0)
+        let actions: UIGraphicsImageRenderer.DrawingActions = {
+            
+            [unowned self] context in
+            
+            backgroundColor.map {
+                
+                $0.setFill()
+                context.fill(bounds)
+            }
+            
+            lineColor.setStroke()
+            newPath.lineWidth = self.lineWidth
+            newPath.stroke()
+        }
         
-        let context: CGContext = UIGraphicsGetCurrentContext()!
-        
-        lineColor.setStroke()
-        newPath.stroke()
-        
-        context.saveGState()
-        context.restoreGState()
-        
-        let image: UIImage = UIGraphicsGetImageFromCurrentImageContext()!
-        
-        UIGraphicsEndImageContext()
+        let image: UIImage = UIGraphicsImageRenderer(bounds: bounds).image(actions: actions)
         
         return image
     }
@@ -158,7 +162,8 @@ class DTCanvasView: UIView
     
     // MARK: Override Methods
     
-    public override func draw(_ rect: CGRect)
+    public override
+    func draw(_ rect: CGRect)
     {
         super.draw(rect)
         
@@ -170,7 +175,8 @@ class DTCanvasView: UIView
         }
     }
     
-    public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?)
+    public override
+    func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?)
     {
         let touch: UITouch = touches.first!
         let point1: CGPoint = touch.previousLocation(in: self)
@@ -190,7 +196,8 @@ class DTCanvasView: UIView
         self.addPath(path)
     }
     
-    public override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?)
+    public override
+    func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?)
     {
         guard let touch: UITouch = touches.first, let path = self.path else {
             
@@ -210,13 +217,15 @@ class DTCanvasView: UIView
         self.setNeedsDisplay()
     }
     
-    public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?)
+    public override
+    func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?)
     {
         self.path = nil
         self.setNeedsDisplay()
     }
     
-    public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?)
+    public override
+    func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?)
     {
         self.path = nil
         self.setNeedsDisplay()
