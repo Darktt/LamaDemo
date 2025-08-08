@@ -26,7 +26,7 @@ class LaMa
     }
     
     public
-    func prediction(input: LaMaInput, options: MLPredictionOptions) throws -> LaMaOutput
+    func prediction(input: LaMaInput, options: MLPredictionOptions = MLPredictionOptions()) throws -> LaMaOutput
     {
         let outFeatures: MLFeatureProvider = try self.model.prediction(from: input, options: options)
         let output = LaMaOutput(provider: outFeatures)
