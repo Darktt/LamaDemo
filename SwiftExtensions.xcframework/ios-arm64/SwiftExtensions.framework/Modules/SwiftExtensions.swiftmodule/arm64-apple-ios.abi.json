@@ -25287,6 +25287,29 @@
         "children": [
           {
             "kind": "Function",
+            "name": "imageRect",
+            "printedName": "imageRect()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CGRect",
+                "printedName": "CoreFoundation.CGRect",
+                "usr": "c:@S@CGRect"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:So11UIImageViewC15SwiftExtensionsE9imageRectSo6CGRectVyF",
+            "mangledName": "$sSo11UIImageViewC15SwiftExtensionsE9imageRectSo6CGRectVyF",
+            "moduleName": "SwiftExtensions",
+            "declAttributes": [
+              "Preconcurrency",
+              "Custom"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
             "name": "setImage",
             "printedName": "setImage(withURL:completion:)",
             "children": [

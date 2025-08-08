@@ -7,6 +7,7 @@
 
 import UIKit
 import CoreML
+import SwiftExtensions
 
 public
 class PhotoViewController: UIViewController
@@ -197,7 +198,7 @@ extension PhotoViewController
             
             do {
                 
-                let result = try await self.processImage(self.selectedImage, with: model)
+                let result = try await self.processImage(with: model)
                 
                 await MainActor.run {
                     
@@ -224,12 +225,14 @@ extension PhotoViewController
         self.imageView.image = self.selectedImage
     }
     
-    func processImage(_ image: UIImage, with model: LaMa) async throws -> UIImage
+    func processImage(with model: LaMa) async throws -> UIImage
     {
         let lineColor = UIColor.white
         let backgroundColor = UIColor.black
         
-        let maskImage: UIImage = self.maskDrawingView.outputImage(withLineColor: lineColor, backgroundColor: backgroundColor)
+        let image: UIImage = self.selectedImage
+        var maskImage: UIImage = self.maskDrawingView.outputImage(withLineColor: lineColor, backgroundColor: backgroundColor)
+        maskImage = self.cropMaskImage(maskImage)
         
         let input = try LaMaInput(image: image, mask: maskImage)
         let output = try model.prediction(input: input)
@@ -252,6 +255,15 @@ extension PhotoViewController
         }
         
         return UIImage(cgImage: cgImage)
+    }
+    
+    func cropMaskImage(_ maskImage: UIImage) -> UIImage
+    {
+        let rect: CGRect = self.imageView.imageRect()
+        
+        let newImage = maskImage.cropping(to: rect)
+        
+        return newImage ?? maskImage
     }
     
     func showAlert(title: String, message: String)

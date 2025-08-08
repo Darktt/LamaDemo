@@ -290,6 +290,7 @@ extension UIKit.UIImage.Orientation {
   }
 }
 extension UIKit.UIImageView {
+  @_Concurrency.MainActor @preconcurrency public func imageRect() -> CoreFoundation.CGRect
   @_Concurrency.MainActor @preconcurrency public func setImage(withURL url: Foundation.URL, completion completionHandler: UIKit.UIImageView.DownloadImageCompleteHandler?)
   @_Concurrency.MainActor @preconcurrency public func setImage(_ image: UIKit.UIImage, animated: Swift.Bool)
   @_Concurrency.MainActor @preconcurrency public func setImage(_ image: UIKit.UIImage, maskImage: UIKit.UIImage)
