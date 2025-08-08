@@ -8,6 +8,7 @@
 import UIKit
 import CoreML
 import PhotosUI
+import SwiftExtensions
 
 public
 class ViewController: UIViewController
@@ -192,31 +193,26 @@ extension ViewController: PHPickerViewControllerDelegate
             
             return
         }
-        
-        let loadImageHandler: (NSItemProvider) -> Void = {
+        result.itemProvider.loadObject(ofClass: UIImage.self) {
             
-            [weak self] itemProvider in
+            [weak self] object, error in
             
-            itemProvider.loadObject(ofClass: UIImage.self) {
-                
-                [weak self] object, error in
-                
-                guard let image = object as? UIImage else {
-                    
-                    DispatchQueue.main.async {
-                        
-                        self?.statusLabel.text = "無法載入選擇的照片"
-                    }
-                    return
-                }
+            guard let image = object as? UIImage else {
                 
                 DispatchQueue.main.async {
                     
-                    self?.presentPhotoViewController(with: image)
+                    self?.statusLabel.text = "無法載入選擇的照片"
                 }
+                return
+            }
+            
+            DispatchQueue.main.async {
+                
+                let size: CGSize = image.size * 0.8
+                let compressedImage: UIImage = image.scale(to: size)
+                
+                self?.presentPhotoViewController(with: compressedImage)
             }
         }
-        
-        loadImageHandler(result.itemProvider)
     }
 }

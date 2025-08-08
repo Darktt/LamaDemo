@@ -6,7 +6,7 @@
 //
 
 import CoreML
-import UIKit.UIImage
+import UIKit
 
 public final
 class LaMaInput: MLFeatureProvider
@@ -35,16 +35,35 @@ class LaMaInput: MLFeatureProvider
     public convenience
     init(image: UIImage, mask: UIImage) throws
     {
-        guard let image = image.cgImage, let mask = mask.cgImage else {
+        guard let imageCGImage = image.cgImage,
+              let maskCGImage = mask.cgImage else {
             
             throw NSError(domain: "LaMaInputError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid image or mask"])
         }
         
-        var featureValue = try MLFeatureValue(cgImage: image, pixelsWide: 800, pixelsHigh: 800, pixelFormatType: kCVPixelFormatType_32ARGB, options: nil)
-        let imagePixelBuffer = featureValue.imageBufferValue!
+        // 建立圖片的 pixel buffer - 使用 RGB 格式
+        let imageFeatureValue = try MLFeatureValue(cgImage: imageCGImage,
+                                                   pixelsWide: Int(image.size.width),
+                                                   pixelsHigh: Int(image.size.height),
+                                                   pixelFormatType: kCVPixelFormatType_32BGRA,
+                                                   options: nil)
         
-        featureValue = try MLFeatureValue(cgImage: mask, pixelsWide: 800, pixelsHigh: 800, pixelFormatType: kCVPixelFormatType_32ARGB, options: nil)
-        let maskPixelBuffer = featureValue.imageBufferValue!
+        guard let imagePixelBuffer = imageFeatureValue.imageBufferValue else {
+            
+            throw NSError(domain: "LaMaInputError", code: -2, userInfo: [NSLocalizedDescriptionKey: "Failed to create image pixel buffer"])
+        }
+        
+        // 建立遮罩的 pixel buffer - 使用灰階格式
+        let maskFeatureValue = try MLFeatureValue(cgImage: maskCGImage,
+                                                  pixelsWide: Int(mask.size.width),
+                                                  pixelsHigh: Int(mask.size.height),
+                                                  pixelFormatType: kCVPixelFormatType_OneComponent8,
+                                                  options: nil)
+        
+        guard let maskPixelBuffer = maskFeatureValue.imageBufferValue else {
+            
+            throw NSError(domain: "LaMaInputError", code: -3, userInfo: [NSLocalizedDescriptionKey: "Failed to create mask pixel buffer"])
+        }
         
         self.init(image: imagePixelBuffer, mask: maskPixelBuffer)
     }
