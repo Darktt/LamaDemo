@@ -174,6 +174,19 @@ extension ViewController
     
     func presentPhotoViewController(with image: UIImage)
     {
+        var image: UIImage = image
+        let maximumSide: CGFloat = image.size.width.maximum(compareWith: image.size.height)
+        let limit: CGFloat = 256.0
+        
+        if maximumSide > limit {
+            
+            let ratio: CGFloat = maximumSide / limit
+            let size: CGSize = image.size / ratio
+            let compressedImage: UIImage = image.scale(to: size)
+            
+            image = compressedImage
+        }
+        
         let photoViewController = PhotoViewController(image: image, lamaModel: self.lamaModel)
         let navigationController = UINavigationController(rootViewController: photoViewController)
         navigationController.modalPresentationStyle = .fullScreen
@@ -211,10 +224,7 @@ extension ViewController: PHPickerViewControllerDelegate
             
             DispatchQueue.main.async {
                 
-                let size: CGSize = image.size * 0.8
-                let compressedImage: UIImage = image.scale(to: size)
-                
-                self?.presentPhotoViewController(with: compressedImage)
+                self?.presentPhotoViewController(with: image)
             }
         }
     }

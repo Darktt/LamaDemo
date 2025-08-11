@@ -350,7 +350,7 @@ extension PhotoViewController
         maskImage = maskImage.scale(to: image.size)
         
         let input = try LaMaInput(image: image, mask: maskImage)
-        let output = try model.prediction(input: input)
+        let output = try await model.prediction(input: input)
         
         guard let outputPixelBuffer = output.output else {
             

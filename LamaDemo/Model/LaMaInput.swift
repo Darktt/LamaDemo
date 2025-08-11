@@ -9,7 +9,7 @@ import CoreML
 import UIKit
 
 public final
-class LaMaInput: MLFeatureProvider
+class LaMaInput: MLFeatureProvider, @unchecked Sendable
 {
     // MARK: - Properties -
     
