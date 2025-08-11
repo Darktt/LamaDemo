@@ -101,6 +101,7 @@ class PhotoViewController: UIViewController
         
         self.view.backgroundColor = UIColor.systemBackground
         self.title = "照片編輯"
+        self.view.backgroundColor = .systemBackground
         
         self.setupNavigationBar()
         self.setupToolbarItems()
@@ -120,19 +121,27 @@ class PhotoViewController: UIViewController
             self.imageView.leadingAnchor =*= self.scrollView.contentLayoutGuide.leadingAnchor,
             self.imageView.trailingAnchor =*= self.scrollView.contentLayoutGuide.trailingAnchor,
             self.imageView.bottomAnchor =*= self.scrollView.contentLayoutGuide.bottomAnchor,
+            
+            self.maskDrawingView.topAnchor =*= self.imageView.topAnchor,
+            self.maskDrawingView.leadingAnchor =*= self.imageView.leadingAnchor,
+            self.maskDrawingView.trailingAnchor =*= self.imageView.trailingAnchor,
+            self.maskDrawingView.bottomAnchor =*= self.imageView.bottomAnchor,
         ])
         
         let imageSize = self.selectedImage.size
-        let ratio = imageSize.width / imageSize.height
         
         if imageSize.width <= imageSize.height {
             
-            self.imageView.widthAnchor =*= self.view.widthAnchor
+            let ratio = imageSize.width / imageSize.height
+            
+            self.imageView.widthAnchor =*= self.scrollView.frameLayoutGuide.widthAnchor
             self.imageView.heightAnchor =*= self.imageView.widthAnchor / ratio
         } else {
             
-            self.imageView.heightAnchor =*= self.view.heightAnchor
-            self.imageView.widthAnchor =*= self.imageView.heightAnchor * ratio
+            let ratio = imageSize.height / imageSize.width
+            
+            self.imageView.heightAnchor =*= self.scrollView.frameLayoutGuide.heightAnchor
+            self.imageView.widthAnchor =*= self.imageView.heightAnchor / ratio
         }
     }
 }
@@ -296,7 +305,10 @@ extension PhotoViewController
     func setupScrollView()
     {
         let scrollView = UIScrollView(frame: .zero)
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.showsHorizontalScrollIndicator = false
         scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.panGestureRecognizer.minimumNumberOfTouches = 2
         
         self.view.addSubview(scrollView)
         self.scrollView = scrollView
@@ -308,6 +320,7 @@ extension PhotoViewController
         imageView.image = self.selectedImage
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.isUserInteractionEnabled = true
         
         self.scrollView.addSubview(imageView)
         self.imageView = imageView
@@ -323,7 +336,7 @@ extension PhotoViewController
         canvasView.backgroundColor = UIColor.clear
         canvasView.translatesAutoresizingMaskIntoConstraints = false
         
-        self.view.addSubview(canvasView)
+        self.imageView.addSubview(canvasView)
         self.maskDrawingView = canvasView
     }
     
@@ -334,7 +347,6 @@ extension PhotoViewController
         
         let image: UIImage = self.selectedImage
         var maskImage: UIImage = self.maskDrawingView.outputImage(withLineColor: lineColor, backgroundColor: backgroundColor)
-        maskImage = self.cropMaskImage(maskImage)
         maskImage = maskImage.scale(to: image.size)
         
         let input = try LaMaInput(image: image, mask: maskImage)

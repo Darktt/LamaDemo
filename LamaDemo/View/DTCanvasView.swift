@@ -62,6 +62,9 @@ class DTCanvasView: UIView
     weak var path: UIBezierPath?
     
     private
+    var finalPath: UIBezierPath = UIBezierPath()
+    
+    private
     var points: (previous1: CGPoint, previous2: CGPoint, current: CGPoint) = (CGPoint.zero, CGPoint.zero, CGPoint.zero)
     
     // MARK: - Methods -
@@ -78,10 +81,12 @@ class DTCanvasView: UIView
     public
     func outputImage(withLineColor lineColor: UIColor, backgroundColor: UIColor? = nil) -> UIImage
     {
-        let newPath = UIBezierPath()
+        guard !self.finalPath.isEmpty else {
+            
+            return UIImage()
+        }
         
-        self.paths.forEach { newPath.append($0) }
-        
+        let newPath = self.finalPath
         var bounds: CGRect = self.bounds
         
         if self.clipToPath {
@@ -169,15 +174,29 @@ class DTCanvasView: UIView
         
         self.lineColor.setStroke()
         
+        self.finalPath.removeAllPoints()
         self.paths.forEach {
             
-            $0.stroke()
+            self.finalPath.append($0)
         }
+        
+        self.finalPath.lineWidth = self.lineWidth
+        self.finalPath.lineCapStyle = .round
+        self.finalPath.lineJoinStyle = .round
+        self.finalPath.miterLimit = -10.0
+        self.finalPath.stroke()
     }
     
     public override
     func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?)
     {
+        guard touches.count == 1 else {
+            
+            self.isUserInteractionEnabled = false
+            self.isUserInteractionEnabled = true
+            return
+        }
+        
         let touch: UITouch = touches.first!
         let point1: CGPoint = touch.previousLocation(in: self)
         let point2: CGPoint = touch.previousLocation(in: self)
