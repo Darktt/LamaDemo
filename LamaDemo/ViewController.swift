@@ -118,21 +118,24 @@ extension ViewController
     
     func setupSelectPhotoButton()
     {
-        let button = UIButton(type: .system)
-        button.setTitle("選擇照片", for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-        button.backgroundColor = UIColor.systemBlue
-        button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 8
-        button.isEnabled = false
-        button.translatesAutoresizingMaskIntoConstraints = false
-        
-        let action = UIAction {
+        let action = UIAction(title: "") {
             
             [weak self] _ in
             
             self?.selectPhotoTapped()
         }
+        
+        let button = UIButton(type: .system)
+        button.setTitle("選擇照片...", for: .normal)
+        button.setTitleColor(.gray, for: .disabled)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+        button.backgroundColor = nil
+        button.cornerRadius = 8.0
+        button.isEnabled = false
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setBackgroundImage(withColor: .systemBlue, for: .normal)
+        button.setBackgroundImage(withColor: .darkGray, for: .disabled)
+        button.setTitleColor(.white, for: .normal)
         button.addAction(action, for: .touchUpInside)
         
         self.view.addSubview(button)
@@ -215,4 +218,10 @@ extension ViewController: PHPickerViewControllerDelegate
             }
         }
     }
+}
+
+public
+func * (left: CGSize, right: CGFloat) -> CGSize
+{
+    return CGSize(width: left.width * right, height: left.height * right)
 }

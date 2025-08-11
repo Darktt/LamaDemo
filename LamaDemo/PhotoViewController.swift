@@ -15,16 +15,16 @@ class PhotoViewController: UIViewController
     // MARK: - Properties -
     
     private
+    var hudView: UIView?
+    
+    private
+    var hudLabel: UILabel?
+    
+    private
     var imageView: UIImageView!
     
     private
     var maskDrawingView: DTCanvasView!
-    
-    private
-    var processButton: UIButton!
-    
-    private
-    var clearMaskButton: UIButton!
     
     private
     var selectedImage: UIImage
@@ -50,6 +50,36 @@ class PhotoViewController: UIViewController
         fatalError("init(coder:) has not been implemented")
     }
     
+    public override
+    func viewWillAppear(_ animated: Bool)
+    {
+        super.viewWillAppear(animated)
+        
+        self.navigationController?.setToolbarHidden(false, animated: true)
+    }
+    
+    public override
+    func viewDidAppear(_ animated: Bool)
+    {
+        super.viewDidAppear(animated)
+        
+    }
+    
+    public override
+    func viewWillDisappear(_ animated: Bool)
+    {
+        super.viewWillDisappear(animated)
+        
+        self.navigationController?.setToolbarHidden(true, animated: true)
+    }
+    
+    public override
+    func viewDidDisappear(_ animated: Bool)
+    {
+        super.viewDidDisappear(animated)
+        
+    }
+    
     public
     override
     func viewDidLoad()
@@ -60,35 +90,24 @@ class PhotoViewController: UIViewController
         self.title = "照片編輯"
         
         self.setupNavigationBar()
+        self.setupToolbarItems()
         self.setupImageView()
         self.setupMaskDrawingView()
-        self.setupProcessButton()
-        self.setupClearMaskButton()
+        self.setupHUD()
         
         NSLayoutConstraint.activate([
-            // Process Button
-            self.processButton.topAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            self.processButton.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 20),
-            self.processButton.trailingAnchor.constraint(equalTo: self.view.centerXAnchor, constant: -10),
-            self.processButton.heightAnchor.constraint(equalToConstant: 44),
-            
-            // Clear Mask Button
-            self.clearMaskButton.topAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            self.clearMaskButton.leadingAnchor.constraint(equalTo: self.view.centerXAnchor, constant: 10),
-            self.clearMaskButton.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -20),
-            self.clearMaskButton.heightAnchor.constraint(equalToConstant: 44),
             
             // Image View - 填滿除了按鈕之外的全部區域
-            self.imageView.topAnchor.constraint(equalTo: self.processButton.bottomAnchor, constant: 20),
-            self.imageView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 20),
-            self.imageView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -20),
-            self.imageView.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            self.imageView.topAnchor =*= self.view.safeAreaLayoutGuide.topAnchor + 20.0,
+            self.imageView.leadingAnchor =*= self.view.leadingAnchor + 20.0,
+            self.imageView.trailingAnchor =*= self.view.trailingAnchor - 20.0,
+            self.imageView.bottomAnchor =*= self.view.safeAreaLayoutGuide.bottomAnchor - 20.0,
             
             // Mask Drawing View (overlays image view)
-            self.maskDrawingView.topAnchor.constraint(equalTo: self.imageView.topAnchor),
-            self.maskDrawingView.leadingAnchor.constraint(equalTo: self.imageView.leadingAnchor),
-            self.maskDrawingView.trailingAnchor.constraint(equalTo: self.imageView.trailingAnchor),
-            self.maskDrawingView.bottomAnchor.constraint(equalTo: self.imageView.bottomAnchor)
+            self.maskDrawingView.topAnchor =*= self.imageView.topAnchor,
+            self.maskDrawingView.leadingAnchor =*= self.imageView.leadingAnchor,
+            self.maskDrawingView.trailingAnchor =*= self.imageView.trailingAnchor,
+            self.maskDrawingView.bottomAnchor =*= self.imageView.bottomAnchor
         ])
     }
 }
@@ -100,15 +119,104 @@ extension PhotoViewController
 {
     func setupNavigationBar()
     {
-        let closeAction = UIAction {
+        let image = UIImage(systemName: "xmark")?
+            .withRenderingMode(.alwaysTemplate)
+            .withTintColor(.label)
+        let closeAction = UIAction(image: image) {
             
             [weak self] _ in
             
             self?.dismiss(animated: true)
         }
         
-        let closeButton = UIBarButtonItem(title: "關閉", primaryAction: closeAction)
+        let closeButton = UIBarButtonItem(primaryAction: closeAction)
         self.navigationItem.leftBarButtonItem = closeButton
+    }
+    
+    func setupToolbarItems()
+    {
+        let clearImage = UIImage(systemName: "trash.fill")?
+            .withRenderingMode(.alwaysTemplate)
+        let cancelAction = UIAction(image: clearImage) {
+            
+            [weak self] _ in
+            
+            self?.clearMaskTapped()
+        }
+        let clearButton = UIBarButtonItem(primaryAction: cancelAction)
+        clearButton.tintColor = .white
+        
+        let spacer = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        
+        let config = UIImage.SymbolConfiguration(paletteColors: [.white, .systemRed])
+        let image = UIImage(systemName: "checkmark.circle.fill", withConfiguration: config)
+        let action = UIAction(image: image) {
+            
+            [weak self] _ in
+            
+            self?.processImageTapped()
+        }
+        let barButton = UIBarButtonItem(primaryAction: action)
+        
+        self.toolbarItems = [clearButton, spacer, barButton]
+    }
+    
+    func setupHUD()
+    {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.tintColor = UIColor.white
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        indicator.startAnimating()
+        
+        let label = UILabel(frame: .zero)
+        label.text = "處理中..."
+        label.textColor = UIColor.white
+        label.setContentHuggingPriority(.defaultHigh, for: .vertical)
+        label.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        
+        self.hudLabel = label
+        
+        let stackView = UIStackView(arrangedSubviews: [indicator, label])
+        stackView.axis = .vertical
+        stackView.alignment = .center
+        stackView.distribution = .fill
+        stackView.spacing = 10.0
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        
+        let hudView = UIView()
+        hudView.translatesAutoresizingMaskIntoConstraints = false
+        hudView.addSubview(stackView)
+        
+        self.hudView = hudView
+        
+        let effect = UIBlurEffect(style: .dark)
+        let backgroundView = UIVisualEffectView(effect: effect)
+        backgroundView.cornerRadius = 8.0
+        backgroundView.isHidden = true
+        backgroundView.translatesAutoresizingMaskIntoConstraints = false
+        backgroundView.contentView.addSubview(hudView)
+        
+        self.view.addSubview(backgroundView)
+        
+        NSLayoutConstraint.activate([
+            
+            stackView.topAnchor =*= hudView.topAnchor + 10.0,
+            stackView.leadingAnchor =*= hudView.leadingAnchor + 10.0,
+            stackView.trailingAnchor =*= hudView.trailingAnchor - 10.0,
+            stackView.bottomAnchor =*= hudView.bottomAnchor - 10.0,
+            
+            hudView.topAnchor =*= backgroundView.contentView.topAnchor,
+            hudView.leadingAnchor =*= backgroundView.contentView.leadingAnchor,
+            hudView.trailingAnchor =*= backgroundView.contentView.trailingAnchor,
+            hudView.bottomAnchor =*= backgroundView.contentView.bottomAnchor,
+            
+            // HUD is center in the view, and size is 80*80
+            backgroundView.contentView.centerXAnchor =*= self.view.centerXAnchor,
+            backgroundView.contentView.centerYAnchor =*= self.view.centerYAnchor,
+            backgroundView.widthAnchor >*= 80.0,
+            backgroundView.widthAnchor =*= backgroundView.heightAnchor,
+        ])
     }
     
     func setupImageView()
@@ -139,50 +247,6 @@ extension PhotoViewController
         self.maskDrawingView = canvasView
     }
     
-    func setupProcessButton()
-    {
-        let button = UIButton(type: .system)
-        button.setTitle("處理圖片", for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
-        button.backgroundColor = UIColor.systemGreen
-        button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 8
-        button.translatesAutoresizingMaskIntoConstraints = false
-        
-        let action = UIAction {
-            
-            [weak self] _ in
-            
-            self?.processImageTapped()
-        }
-        button.addAction(action, for: .touchUpInside)
-        
-        self.view.addSubview(button)
-        self.processButton = button
-    }
-    
-    func setupClearMaskButton()
-    {
-        let button = UIButton(type: .system)
-        button.setTitle("清除遮罩", for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
-        button.backgroundColor = UIColor.systemRed
-        button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 8
-        button.translatesAutoresizingMaskIntoConstraints = false
-        
-        let action = UIAction {
-            
-            [weak self] _ in
-            
-            self?.clearMaskTapped()
-        }
-        button.addAction(action, for: .touchUpInside)
-        
-        self.view.addSubview(button)
-        self.clearMaskButton = button
-    }
-    
     func processImageTapped()
     {
         guard let model = self.lamaModel else {
@@ -190,9 +254,6 @@ extension PhotoViewController
             self.showAlert(title: "錯誤", message: "LaMa 模型未載入")
             return
         }
-        
-        self.processButton.isEnabled = false
-        self.processButton.setTitle("處理中...", for: .normal)
         
         Task {
             
@@ -203,8 +264,6 @@ extension PhotoViewController
                 await MainActor.run {
                     
                     self.imageView.image = result
-                    self.processButton.isEnabled = true
-                    self.processButton.setTitle("處理圖片", for: .normal)
                 }
                 
             } catch {
@@ -212,8 +271,6 @@ extension PhotoViewController
                 await MainActor.run {
                     
                     self.showAlert(title: "處理失敗", message: error.localizedDescription)
-                    self.processButton.isEnabled = true
-                    self.processButton.setTitle("處理圖片", for: .normal)
                 }
             }
         }
@@ -233,6 +290,7 @@ extension PhotoViewController
         let image: UIImage = self.selectedImage
         var maskImage: UIImage = self.maskDrawingView.outputImage(withLineColor: lineColor, backgroundColor: backgroundColor)
         maskImage = self.cropMaskImage(maskImage)
+        maskImage = maskImage.scale(to: image.size)
         
         let input = try LaMaInput(image: image, mask: maskImage)
         let output = try model.prediction(input: input)
@@ -261,7 +319,7 @@ extension PhotoViewController
     {
         let rect: CGRect = self.imageView.imageRect()
         
-        let newImage = maskImage.cropping(to: rect)
+        let newImage: UIImage? = maskImage.cgImage?.cropping(to: rect).map { UIImage(cgImage: $0) }
         
         return newImage ?? maskImage
     }
