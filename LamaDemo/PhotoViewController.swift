@@ -9,16 +9,29 @@ import UIKit
 import CoreML
 import SwiftExtensions
 
+private
+enum ProcessState: String
+{
+    case processing = "處理中..."
+    
+    case completed = "處理完成"
+    
+    case failed = "處理失敗"
+}
+
 public
 class PhotoViewController: UIViewController
 {
     // MARK: - Properties -
     
     private
-    var hudView: UIView?
+    var hudView: UIView!
     
     private
-    var hudLabel: UILabel?
+    var hudLabel: UILabel!
+    
+    private
+    var scrollView: UIScrollView!
     
     private
     var imageView: UIImageView!
@@ -91,24 +104,85 @@ class PhotoViewController: UIViewController
         
         self.setupNavigationBar()
         self.setupToolbarItems()
+        self.setupScrollView()
         self.setupImageView()
         self.setupMaskDrawingView()
         self.setupHUD()
         
         NSLayoutConstraint.activate([
             
-            // Image View - 填滿除了按鈕之外的全部區域
-            self.imageView.topAnchor =*= self.view.safeAreaLayoutGuide.topAnchor + 20.0,
-            self.imageView.leadingAnchor =*= self.view.leadingAnchor + 20.0,
-            self.imageView.trailingAnchor =*= self.view.trailingAnchor - 20.0,
-            self.imageView.bottomAnchor =*= self.view.safeAreaLayoutGuide.bottomAnchor - 20.0,
+            self.scrollView.topAnchor =*= self.view.safeAreaLayoutGuide.topAnchor,
+            self.scrollView.leadingAnchor =*= self.view.leadingAnchor,
+            self.scrollView.trailingAnchor =*= self.view.trailingAnchor,
+            self.scrollView.bottomAnchor =*= self.view.safeAreaLayoutGuide.bottomAnchor,
             
-            // Mask Drawing View (overlays image view)
-            self.maskDrawingView.topAnchor =*= self.imageView.topAnchor,
-            self.maskDrawingView.leadingAnchor =*= self.imageView.leadingAnchor,
-            self.maskDrawingView.trailingAnchor =*= self.imageView.trailingAnchor,
-            self.maskDrawingView.bottomAnchor =*= self.imageView.bottomAnchor
+            self.imageView.topAnchor =*= self.scrollView.contentLayoutGuide.topAnchor,
+            self.imageView.leadingAnchor =*= self.scrollView.contentLayoutGuide.leadingAnchor,
+            self.imageView.trailingAnchor =*= self.scrollView.contentLayoutGuide.trailingAnchor,
+            self.imageView.bottomAnchor =*= self.scrollView.contentLayoutGuide.bottomAnchor,
         ])
+        
+        let imageSize = self.selectedImage.size
+        let ratio = imageSize.width / imageSize.height
+        
+        if imageSize.width <= imageSize.height {
+            
+            self.imageView.widthAnchor =*= self.view.widthAnchor
+            self.imageView.heightAnchor =*= self.imageView.widthAnchor / ratio
+        } else {
+            
+            self.imageView.heightAnchor =*= self.view.heightAnchor
+            self.imageView.widthAnchor =*= self.imageView.heightAnchor * ratio
+        }
+    }
+}
+
+// MARK: - Actions -
+
+private
+extension PhotoViewController
+{
+    func clearMaskTapped()
+    {
+        self.maskDrawingView.cleanUp()
+        self.imageView.image = self.selectedImage
+    }
+    
+    func processImageTapped()
+    {
+        guard let model = self.lamaModel else {
+            
+            self.showAlert(title: "錯誤", message: "LaMa 模型未載入")
+            return
+        }
+        
+        self.hudView.isHidden = false
+        self.hudLabel.text = ProcessState.processing.rawValue
+        
+        Task {
+            
+            do {
+                
+                let result = try await self.processImage(with: model)
+                
+                await MainActor.run {
+                    
+                    self.imageView.image = result
+                    self.hudView.isHidden = true
+                    self.hudLabel.text = ProcessState.completed.rawValue
+                }
+                
+            } catch {
+                
+                await MainActor.run {
+                    
+                    self.hudView.isHidden = true
+                    
+                    let title: String = ProcessState.failed.rawValue
+                    self.showAlert(title: title, message: error.localizedDescription)
+                }
+            }
+        }
     }
 }
 
@@ -169,7 +243,7 @@ extension PhotoViewController
         indicator.startAnimating()
         
         let label = UILabel(frame: .zero)
-        label.text = "處理中..."
+        label.text = ProcessState.processing.rawValue
         label.textColor = UIColor.white
         label.setContentHuggingPriority(.defaultHigh, for: .vertical)
         label.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
@@ -190,7 +264,7 @@ extension PhotoViewController
         
         self.hudView = hudView
         
-        let effect = UIBlurEffect(style: .dark)
+        let effect = UIBlurEffect(style: .systemChromeMaterial)
         let backgroundView = UIVisualEffectView(effect: effect)
         backgroundView.cornerRadius = 8.0
         backgroundView.isHidden = true
@@ -219,17 +293,23 @@ extension PhotoViewController
         ])
     }
     
+    func setupScrollView()
+    {
+        let scrollView = UIScrollView(frame: .zero)
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        
+        self.view.addSubview(scrollView)
+        self.scrollView = scrollView
+    }
+    
     func setupImageView()
     {
-        let imageView = UIImageView()
-        imageView.contentMode = .scaleAspectFit
-        imageView.backgroundColor = UIColor.systemGray6
-        imageView.layer.cornerRadius = 8
-        imageView.clipsToBounds = true
-        imageView.translatesAutoresizingMaskIntoConstraints = false
+        let imageView = UIImageView(frame: .zero)
         imageView.image = self.selectedImage
+        imageView.contentMode = .scaleAspectFit
+        imageView.translatesAutoresizingMaskIntoConstraints = false
         
-        self.view.addSubview(imageView)
+        self.scrollView.addSubview(imageView)
         self.imageView = imageView
     }
     
@@ -245,41 +325,6 @@ extension PhotoViewController
         
         self.view.addSubview(canvasView)
         self.maskDrawingView = canvasView
-    }
-    
-    func processImageTapped()
-    {
-        guard let model = self.lamaModel else {
-            
-            self.showAlert(title: "錯誤", message: "LaMa 模型未載入")
-            return
-        }
-        
-        Task {
-            
-            do {
-                
-                let result = try await self.processImage(with: model)
-                
-                await MainActor.run {
-                    
-                    self.imageView.image = result
-                }
-                
-            } catch {
-                
-                await MainActor.run {
-                    
-                    self.showAlert(title: "處理失敗", message: error.localizedDescription)
-                }
-            }
-        }
-    }
-    
-    func clearMaskTapped()
-    {
-        self.maskDrawingView.cleanUp()
-        self.imageView.image = self.selectedImage
     }
     
     func processImage(with model: LaMa) async throws -> UIImage
